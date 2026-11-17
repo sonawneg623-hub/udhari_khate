@@ -11,11 +11,18 @@
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
   <div class="field">
+    <label for="pageInput"><span>रजिस्टर पान क्रमांक <em>*</em></span></label>
+    <input id="pageInput" type="text" name="page_no" maxlength="10" required autocomplete="off"
+           autocapitalize="characters" value="{{ v.get('page_no', c.page_no or '') }}" placeholder="उदा. 12 किंवा 12A">
+    <p class="hint">वहीतील पानाचा नंबर = या ग्राहकाचा कोड. प्रत्येक ग्राहकाचा वेगळा.{% if last_page %} सध्या सर्वात मोठा वापरलेला: <b>{{ last_page }}</b>{% endif %}</p>
+  </div>
+
+  <div class="field">
     <label for="nameInput"><span>ग्राहकाचे नाव <em>*</em></span></label>
     <div class="input-mic">
       <input id="nameInput" type="text" name="name" maxlength="100" required
              value="{{ v.get('name', c.name or '') }}" placeholder="नाव लिहा किंवा माइक दाबून बोला">
-      <button type="button" id="micBtn" class="mic-btn" aria-label="बोलून नाव टाका" title="बोलून नाव टाका">{{ ic('mic') }}</button>
+      <button type="button" id="micBtn" class="mic-btn" data-mic-for="nameInput" data-mic-status="micStatus" data-mic-mode="name" aria-label="बोलून नाव टाका" title="बोलून नाव टाका">{{ ic('mic') }}</button>
     </div>
     <p id="micStatus" class="mic-status" role="status" aria-live="polite">{{ ic('mic') }} माइक दाबा आणि ग्राहकाचे नाव मराठीत बोला</p>
   </div>

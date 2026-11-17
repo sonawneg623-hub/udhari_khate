@@ -8,6 +8,8 @@
     <span class="avatar avatar-lg av-{{ c.id % 6 }}">{{ c.name[:1] }}</span>
     <div class="profile-info">
       <h1>{{ c.name }}</h1>
+      {% if c.page_no %}<p><span class="pgno pgno-lg">रजिस्टर पान क्र. {{ c.page_no }}</span></p>
+      {% else %}<p><a href="{{ url_for('customer_edit', cid=c.id) }}">{{ ic('note') }} पान क्रमांक भरा</a></p>{% endif %}
       {% if c.phone %}<p><a href="tel:+91{{ c.phone }}">{{ ic('phone') }} {{ c.phone }}</a></p>{% endif %}
       {% if c.address %}<p>{{ ic('pin') }} {{ c.address }}</p>{% endif %}
       {% if c.note %}<p class="muted">{{ ic('note') }} {{ c.note }}</p>{% endif %}

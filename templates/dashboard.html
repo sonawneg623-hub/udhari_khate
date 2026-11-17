@@ -18,6 +18,16 @@
   </div>
 </section>
 
+<form class="search" method="get" action="{{ url_for('customers') }}">
+  <span class="search-box">
+    {{ ic('search') }}
+    <input id="dashQ" type="search" name="q" placeholder="नाव, पान क्रमांक किंवा मोबाईल शोधा" aria-label="शोधा" autocomplete="off">
+    <button type="button" class="mic-btn" data-mic-for="dashQ" data-mic-status="dashMic" data-mic-mode="search" aria-label="बोलून शोधा" title="बोलून शोधा">{{ ic('mic') }}</button>
+  </span>
+  <button class="btn btn-primary" type="submit">शोधा</button>
+</form>
+<p id="dashMic" class="mic-status">{{ ic('mic') }} माइक दाबा आणि नाव किंवा पान क्रमांक बोला</p>
+
 <section class="tiles">
   <a class="tile" href="{{ url_for('customers') }}">{{ ic('users') }}<b>ग्राहक यादी</b><small>सर्व ग्राहक पहा</small></a>
   <a class="tile tile-gold" href="{{ url_for('customer_new') }}">{{ ic('plus') }}<b>नवीन ग्राहक</b><small>नाव बोलून जोडा</small></a>
@@ -32,7 +42,7 @@
     <li>
       <a class="row" href="{{ url_for('customer_detail', cid=c.id) }}">
         <span class="avatar av-{{ c.id % 6 }}">{{ c.name[:1] }}</span>
-        <span class="row-main"><b>{{ c.name }}</b>{% if c.phone %}<small>{{ ic('phone') }} {{ c.phone }}</small>{% endif %}</span>
+        <span class="row-main"><b>{{ c.name }}</b><small>{% if c.page_no %}<span class="pgno">पान {{ c.page_no }}</span> {% endif %}{% if c.phone %}{{ ic('phone') }} {{ c.phone }}{% endif %}</small></span>
         <span class="amount amount-due">{{ b|inr }}</span>
       </a>
     </li>

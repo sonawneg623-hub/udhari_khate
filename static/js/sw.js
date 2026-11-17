@@ -3,7 +3,7 @@
  * - ग्राहकांचा डेटा / HTML पाने कधीही कॅश होत नाहीत (खाजगी माहिती फोनवर साठू नये म्हणून)
  * - इंटरनेट नसल्यास "इंटरनेट नाही" पान दिसते
  */
-const VERSION = "v2";
+const VERSION = "v3";
 const STATIC_CACHE = "udhari-static-" + VERSION;
 const FONT_CACHE = "udhari-fonts-" + VERSION;
 const PRECACHE = [

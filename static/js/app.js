@@ -62,6 +62,11 @@
     });
   }, 4500);
 
+  var DEV = "०१२३४५६७८९";
+  function devToAscii(s) {
+    return s.replace(/[०-९]/g, function (d) { return DEV.indexOf(d); });
+  }
+
   // रक्कम बॉक्स: फक्त अंक, ',' आणि '.'
   var amount = document.querySelector(".amount-input");
   if (amount) {
@@ -70,38 +75,69 @@
     });
   }
 
-  // ---------- मोबाईल नंबर: फक्त १० अंक ----------
+  // मोबाईल नंबर: फक्त १० अंक
   var phone = document.getElementById("phoneInput");
   if (phone) {
-    var DEV = "०१२३४५६७८९";
     phone.addEventListener("input", function () {
-      var out = "";
-      for (var i = 0; i < phone.value.length; i++) {
-        var ch = phone.value[i], d = DEV.indexOf(ch);
-        if (d > -1) out += d;
-        else if (ch >= "0" && ch <= "9") out += ch;
-      }
-      phone.value = out.slice(0, 10);
+      phone.value = devToAscii(phone.value).replace(/[^0-9]/g, "").slice(0, 10);
     });
   }
 
-  // ---------- बोलून ग्राहकाचे नाव (Web Speech API, मराठी) ----------
-  var micBtn = document.getElementById("micBtn");
-  var nameInput = document.getElementById("nameInput");
-  var micStatus = document.getElementById("micStatus");
-  if (micBtn && nameInput && micStatus) {
-    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    var rec = null, listening = false, gotText = false;
-    var icon = micStatus.querySelector("svg") ? micStatus.querySelector("svg").outerHTML : "";
+  // पान क्रमांक: अंक/इंग्रजी अक्षरे/-/ ; मराठी अंक -> इंग्रजी; CAPITAL; कमाल १०
+  var pageNo = document.getElementById("pageInput");
+  if (pageNo) {
+    pageNo.addEventListener("input", function () {
+      pageNo.value = devToAscii(pageNo.value).toUpperCase().replace(/[^A-Z0-9\/\-]/g, "").slice(0, 10);
+    });
+  }
+
+  // ---------- मराठी अंक-शब्द -> अंक (पान क्रमांक बोलताना: "पंधरा" -> 15) ----------
+  var NUM_WORDS = ("शून्य,एक,दोन,तीन,चार,पाच,सहा,सात,आठ,नऊ,दहा,अकरा,बारा,तेरा,चौदा,पंधरा,सोळा,सतरा,अठरा,एकोणीस," +
+    "वीस,एकवीस,बावीस,तेवीस,चोवीस,पंचवीस,सव्वीस,सत्तावीस,अठ्ठावीस,एकोणतीस," +
+    "तीस,एकतीस,बत्तीस,तेहतीस,चौतीस,पस्तीस,छत्तीस,सदतीस,अडतीस,एकोणचाळीस," +
+    "चाळीस,एक्केचाळीस,बेचाळीस,त्रेचाळीस,चव्वेचाळीस,पंचेचाळीस,सेहेचाळीस,सत्तेचाळीस,अठ्ठेचाळीस,एकोणपन्नास," +
+    "पन्नास,एक्कावन्न,बावन्न,त्रेपन्न,चोपन्न,पंचावन्न,छप्पन्न,सत्तावन्न,अठ्ठावन्न,एकोणसाठ," +
+    "साठ,एकसष्ट,बासष्ट,त्रेसष्ट,चौसष्ट,पासष्ट,सहासष्ट,सदुसष्ट,अडुसष्ट,एकोणसत्तर," +
+    "सत्तर,एक्काहत्तर,बाहत्तर,त्र्याहत्तर,चौऱ्याहत्तर,पंच्याहत्तर,शहात्तर,सत्याहत्तर,अठ्ठ्याहत्तर,एकोणऐंशी," +
+    "ऐंशी,एक्क्याऐंशी,ब्याऐंशी,त्र्याऐंशी,चौऱ्याऐंशी,पंच्याऐंशी,शहाऐंशी,सत्त्याऐंशी,अठ्ठ्याऐंशी,एकोणनव्वद," +
+    "नव्वद,एक्क्याण्णव,ब्याण्णव,त्र्याण्णव,चौऱ्याण्णव,पंच्याण्णव,शहाण्णव,सत्त्याण्णव,अठ्ठ्याण्णव,नव्व्याण्णव,शंभर").split(",");
+  var NUM = {};
+  NUM_WORDS.forEach(function (w, i) { NUM[w] = i; });
+  var FILLER = /^(पान|पाना|पानाचा|पानावर|पानाचे|क्रमांक|क्र|नंबर|नंबरचे|नं|पेज|page|number|no)$/i;
+
+  // शोधासाठी बोललेला मजकूर साफ करा: "पान पंधरा" / "पान १५" -> "15"
+  function cleanSearch(text) {
+    var t = devToAscii(text).replace(/[.।,?!]+/g, " ").replace(/\s+/g, " ").trim();
+    var parts = t.split(" ").filter(function (w) { return w && !FILLER.test(w); });
+    if (!parts.length) return t;
+    if (parts.length === 1 && Object.prototype.hasOwnProperty.call(NUM, parts[0])) return String(NUM[parts[0]]);
+    if (parts.length > 1 && parts.every(function (w) { return /^\d$/.test(w); })) return parts.join("");
+    return parts.join(" ");
+  }
+
+  // ---------- बोलून लिहा (Web Speech API, मराठी): नाव आणि शोध ----------
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  function setupMic(btn) {
+    var input = document.getElementById(btn.getAttribute("data-mic-for"));
+    var status = document.getElementById(btn.getAttribute("data-mic-status"));
+    var mode = btn.getAttribute("data-mic-mode") || "name";
+    if (!input || !status) return;
+
+    var iconEl = status.querySelector("svg");
+    var icon = iconEl ? iconEl.outerHTML : "";
+    var idle = status.textContent.trim();
+    var rec = null, listening = false, gotText = false, failed = false;
 
     function say(text, cls) {
-      micStatus.className = "mic-status" + (cls ? " " + cls : "");
-      micStatus.innerHTML = icon + " " + text;
+      status.className = "mic-status" + (cls ? " " + cls : "");
+      status.innerHTML = icon + " ";
+      status.appendChild(document.createTextNode(text));
     }
 
-    micBtn.addEventListener("click", function () {
+    btn.addEventListener("click", function () {
       if (!SR) {
-        say("या ब्राउझरमध्ये बोलून लिहिण्याची सुविधा नाही. Android वर Chrome वापरा, किंवा नाव टाईप करा.", "err");
+        say("या ब्राउझरमध्ये बोलून लिहिण्याची सुविधा नाही. Android वर Chrome वापरा, किंवा टाईप करा.", "err");
         return;
       }
       if (listening && rec) { rec.stop(); return; }
@@ -112,17 +148,18 @@
       rec.continuous = false;
       rec.maxAlternatives = 1;
       gotText = false;
+      failed = false;
 
       rec.onstart = function () {
         listening = true;
-        micBtn.classList.add("on");
-        say("ऐकत आहे… आता नाव बोला", "listening");
+        btn.classList.add("on");
+        say(mode === "search" ? "ऐकत आहे… नाव किंवा पान क्रमांक बोला" : "ऐकत आहे… आता नाव बोला", "listening");
       };
       rec.onresult = function (ev) {
         var t = "";
         for (var i = 0; i < ev.results.length; i++) t += ev.results[i][0].transcript;
         t = t.replace(/[.।,?!]+$/, "").replace(/\s+/g, " ").trim();
-        if (t) { nameInput.value = t; gotText = true; }
+        if (t) { input.value = mode === "search" ? cleanSearch(t) : t; gotText = true; }
       };
       rec.onerror = function (ev) {
         var m = {
@@ -133,19 +170,31 @@
           "network": "इंटरनेट तपासा – बोलून लिहायला इंटरनेट लागते.",
           "language-not-supported": "मराठी भाषा या ब्राउझरमध्ये उपलब्ध नाही."
         };
-        gotText = true; // त्रुटी संदेश टिकवण्यासाठी
+        failed = true;
         say(m[ev.error] || "बोलून लिहिता आले नाही. पुन्हा प्रयत्न करा.", "err");
       };
       rec.onend = function () {
         listening = false;
-        micBtn.classList.remove("on");
-        if (micStatus.classList.contains("listening")) {
-          if (nameInput.value && gotText) say("नाव बरोबर आहे का ते तपासा; चुकले असेल तर दुरुस्त करा.", "ok");
-          else say("काही ऐकू आले नाही. पुन्हा माइक दाबून बोला.", "err");
+        btn.classList.remove("on");
+        if (failed) return;
+        if (!gotText || !input.value) {
+          say("काही ऐकू आले नाही. पुन्हा माइक दाबून बोला.", "err");
+          return;
         }
-        nameInput.focus();
+        if (mode === "search" && input.form) {
+          say("“" + input.value + "” शोधत आहे…", "ok");
+          if (input.form.requestSubmit) input.form.requestSubmit(); else input.form.submit();
+        } else {
+          say("नाव बरोबर आहे का ते तपासा; चुकले असेल तर दुरुस्त करा.", "ok");
+          input.focus();
+        }
       };
       try { rec.start(); } catch (err) { say("माइक सुरू करता आला नाही. पुन्हा प्रयत्न करा.", "err"); }
     });
+
+    // शोध पान उघडल्यावर स्थिती पुन्हा मूळ मजकुरावर
+    if (!status.textContent.trim()) say(idle || "", "");
   }
+
+  document.querySelectorAll("[data-mic-for]").forEach(setupMic);
 })();

@@ -175,6 +175,17 @@ input:focus { outline: none; border-color: var(--em-600); background: #fff; box-
 .seg a { padding: 8px 18px; border-radius: 11px; text-decoration: none; font-weight: 600; font-size: .92rem; color: var(--muted); }
 .seg a.on { background: #fff; color: var(--em-900); box-shadow: var(--sh-1); }
 
+/* ---------- पान क्रमांक, शोध-माइक, फिल्टर ---------- */
+.pgno { display: inline-block; font: 600 .74rem var(--font-head); color: var(--gold-dark); background: #fbf0c9; border: 1px solid #ebd283; border-radius: 8px; padding: 0 7px; line-height: 1.5; vertical-align: 1px; white-space: nowrap; }
+.pgno-lg { font-size: .9rem; padding: 2px 12px; border-radius: 10px; }
+.search-box input { padding-right: 60px; }
+.search-box .mic-btn { top: 5px; right: 5px; width: 42px; height: 42px; }
+.search + .mic-status { margin: -4px 4px 12px; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 4px; }
+.filters .seg { margin-bottom: 10px; }
+.banner { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--gold-dark); background: #fdf6dc; border: 1px solid #ebd283; border-radius: 14px; padding: 10px 14px; margin-bottom: 14px; font-weight: 600; font-size: .92rem; }
+.banner span { flex: 1; }
+
 /* ---------- Flash ---------- */
 .flashes { margin-bottom: 14px; display: grid; gap: 8px; }
 .flash { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; font-weight: 500; border: 1px solid; animation: pop .3s ease; box-shadow: var(--sh-1); }

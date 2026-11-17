@@ -7,18 +7,36 @@
 </div>
 
 <form class="search" method="get" action="{{ url_for('customers') }}">
-  {% if only_due %}<input type="hidden" name="f" value="due">{% endif %}
+  {% if f %}<input type="hidden" name="f" value="{{ f }}">{% endif %}
+  {% if sort == 'page' %}<input type="hidden" name="s" value="page">{% endif %}
   <span class="search-box">
     {{ ic('search') }}
-    <input type="search" name="q" value="{{ q }}" placeholder="नाव किंवा मोबाईल शोधा" aria-label="शोधा">
+    <input id="searchQ" type="search" name="q" value="{{ q }}" placeholder="नाव, पान क्रमांक किंवा मोबाईल" aria-label="शोधा" autocomplete="off">
+    <button type="button" class="mic-btn" data-mic-for="searchQ" data-mic-status="searchMic" data-mic-mode="search" aria-label="बोलून शोधा" title="बोलून शोधा">{{ ic('mic') }}</button>
   </span>
   <button class="btn btn-primary" type="submit">शोधा</button>
 </form>
+<p id="searchMic" class="mic-status">{{ ic('mic') }} माइक दाबा आणि नाव किंवा पान क्रमांक बोला</p>
 
-<div class="seg">
-  <a class="{{ '' if only_due else 'on' }}" href="{{ url_for('customers', q=q or None) }}">सर्व</a>
-  <a class="{{ 'on' if only_due else '' }}" href="{{ url_for('customers', f='due', q=q or None) }}">बाकी असलेले</a>
+<div class="filters">
+  <div class="seg">
+    <a class="{{ '' if f == 'due' else 'on' }}" href="{{ url_for('customers', q=q or None, s='page' if sort == 'page' else None) }}">सर्व</a>
+    <a class="{{ 'on' if f == 'due' else '' }}" href="{{ url_for('customers', f='due', q=q or None, s='page' if sort == 'page' else None) }}">बाकी असलेले</a>
+  </div>
+  <div class="seg">
+    <a class="{{ '' if sort == 'page' else 'on' }}" href="{{ url_for('customers', q=q or None, f=f) }}">नावानुसार</a>
+    <a class="{{ 'on' if sort == 'page' else '' }}" href="{{ url_for('customers', q=q or None, f=f, s='page') }}">पान क्र. नुसार</a>
+  </div>
 </div>
+
+{% if nopage_count and f != 'nopage' %}
+<a class="banner" href="{{ url_for('customers', f='nopage') }}">
+  {{ ic('note') }}<span>{{ nopage_count }} ग्राहकांचा पान क्रमांक अजून भरलेला नाही – पाहा आणि भरा</span>{{ ic('chev') }}
+</a>
+{% endif %}
+{% if f == 'nopage' %}
+<p class="muted count">पान क्रमांक नसलेले ग्राहक – ग्राहक उघडून “बदला” मधून पान क्रमांक भरा. <a href="{{ url_for('customers') }}">सर्व ग्राहक</a></p>
+{% endif %}
 
 <section class="card">
   {% if rows %}
@@ -30,7 +48,7 @@
         <span class="avatar av-{{ c.id % 6 }}">{{ c.name[:1] }}</span>
         <span class="row-main">
           <b>{{ c.name }}</b>
-          <small>{% if c.phone %}{{ ic('phone') }} {{ c.phone }}{% endif %}{% if c.phone and c.address %} · {% endif %}{{ c.address or '' }}</small>
+          <small>{% if c.page_no %}<span class="pgno">पान {{ c.page_no }}</span> {% endif %}{% if c.phone %}{{ ic('phone') }} {{ c.phone }}{% endif %}{% if c.phone and c.address %} · {% endif %}{{ c.address or '' }}</small>
         </span>
         {% if b > 0 %}<span class="amount amount-due">{{ b|inr }}</span>
         {% elif b < 0 %}<span class="pill pill-ok">आगाऊ {{ (-b)|inr }}</span>
@@ -42,7 +60,8 @@
   {% else %}
   <p class="empty">
     {% if q %}“{{ q }}” साठी कोणीही सापडले नाही.
-    {% elif only_due %}कोणाकडेही उधारी बाकी नाही.
+    {% elif f == 'due' %}कोणाकडेही उधारी बाकी नाही.
+    {% elif f == 'nopage' %}सर्व ग्राहकांचा पान क्रमांक भरलेला आहे.
     {% else %}अजून कोणताही ग्राहक नाही. <a href="{{ url_for('customer_new') }}">पहिला ग्राहक जोडा</a>.{% endif %}
   </p>
   {% endif %}

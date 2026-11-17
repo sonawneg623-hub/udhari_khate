@@ -17,14 +17,14 @@ from flask import (Flask, Response, abort, flash, jsonify, redirect,
                    url_for)
 from flask_sqlalchemy import SQLAlchemy
 from markupsafe import Markup
-from sqlalchemy import case, func, or_
+from sqlalchemy import case, func, inspect, or_
 from sqlalchemy.exc import IntegrityError
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 IST = timezone(timedelta(hours=5, minutes=30))
-ASSET_VERSION = "2"  # वाढवा म्हणजे CSS/JS बदल फोनवर लगेच दिसतात
+ASSET_VERSION = "3"  # वाढवा म्हणजे CSS/JS बदल फोनवर लगेच दिसतात
 
 MONTHS_MR = ["जानेवारी", "फेब्रुवारी", "मार्च", "एप्रिल", "मे", "जून",
              "जुलै", "ऑगस्ट", "सप्टेंबर", "ऑक्टोबर", "नोव्हेंबर", "डिसेंबर"]
@@ -43,8 +43,11 @@ def database_uri():
     if not url:
         os.makedirs(os.path.join(BASE_DIR, "instance"), exist_ok=True)
         return "sqlite:///" + os.path.join(BASE_DIR, "instance", "udhari.db")
-    if url.startswith("postgres://"):
-        url = "postgresql://" + url[len("postgres://"):]
+    # नेहमी psycopg2 driver वापरा (SQLAlchemy 2.1+ चा default psycopg v3 आहे, जो आपण install करत नाही)
+    for prefix in ("postgres://", "postgresql://"):
+        if url.startswith(prefix):
+            url = "postgresql+psycopg2://" + url[len(prefix):]
+            break
     return url
 
 
@@ -89,13 +92,15 @@ class Customer(db.Model):
     __tablename__ = "customers"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, index=True)
+    page_no = db.Column(db.String(12))  # रजिस्टरचा पान क्रमांक = ग्राहकाचा unique कोड (उदा. 12, 12A)
     phone = db.Column(db.String(10))  # १० अंकी, प्रत्येक ग्राहकाला वेगळा (unique index खाली)
     address = db.Column(db.String(200))
     note = db.Column(db.String(200))
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     entries = db.relationship("Entry", backref="customer", cascade="all, delete-orphan",
                               passive_deletes=False, lazy="dynamic")
-    __table_args__ = (db.Index("uq_customers_phone", "phone", unique=True),)
+    __table_args__ = (db.Index("uq_customers_phone", "phone", unique=True),
+                      db.Index("uq_customers_page_no", "page_no", unique=True))
 
 
 class Entry(db.Model):
@@ -264,6 +269,23 @@ def parse_phone(raw):
     return s if len(s) == 10 and s.isascii() and s.isdigit() else None
 
 
+PAGE_RE = re.compile(r"^[A-Z0-9][A-Z0-9/\-]{0,9}$")
+
+
+def parse_page_no(raw):
+    """रजिस्टर पान क्रमांक: अंक/इंग्रजी अक्षरे/'-'/'/', जास्तीत जास्त १०. मराठी अंक चालतील.
+    स्पेस काढतो, अक्षरे CAPITAL करतो (12a -> 12A). अन्यथा None."""
+    s = re.sub(r"\s+", "", (raw or "").translate(_DEVANAGARI)).upper()
+    return s if PAGE_RE.match(s) else None
+
+
+def last_page_hint():
+    """सर्वात मोठा वापरलेला (फक्त अंकी) पान क्रमांक – नवीन ग्राहक जोडताना सूचना म्हणून."""
+    vals = [p for (p,) in db.session.query(Customer.page_no).filter(Customer.page_no.isnot(None))
+            if p.isdigit()]
+    return max(int(v) for v in vals) if vals else None
+
+
 app.jinja_env.globals["ic"] = lambda name, cls="": Markup(
     '<svg class="ic %s" aria-hidden="true"><use href="#i-%s"/></svg>' % (cls, name))
 
@@ -362,27 +384,57 @@ def dashboard():
 @app.route("/customers")
 @login_required
 def customers():
-    q = request.args.get("q", "").strip()
-    only_due = request.args.get("f") == "due"
+    q = request.args.get("q", "").strip()[:60]
+    f = request.args.get("f") if request.args.get("f") in ("due", "nopage") else None
+    sort = "page" if request.args.get("s") == "page" else "name"
     base, bal = customers_with_balance()
+    order = []
     if q:
-        like = "%" + q.replace("%", "").replace("_", "") + "%"
-        base = base.filter(or_(Customer.name.ilike(like), Customer.phone.like(like)))
-    if only_due:
-        base = base.having(bal > 0).order_by(bal.desc(), Customer.name)
-    else:
-        base = base.order_by(Customer.name)
-    return render_template("customers.html", rows=base.all(), q=q, only_due=only_due)
+        qn = q.translate(_DEVANAGARI)
+        esc = qn.replace("%", "").replace("_", "")
+        conds = [Customer.name.ilike("%" + esc + "%"), Customer.page_no.ilike(esc + "%")]
+        if esc.isdigit() and len(esc) >= 3:  # लहान अंकांनी (उदा. "12") मोबाईल नंबरमध्ये गोंधळ नको
+            conds.append(Customer.phone.like("%" + esc + "%"))
+        base = base.filter(or_(*conds))
+        # पान क्रमांक अगदी जुळला तर तो सर्वात वर
+        order.append(case((func.upper(Customer.page_no) == qn.upper().strip(), 0), else_=1))
+    if f == "due":
+        base = base.having(bal > 0)
+        order.append(bal.desc())
+    elif f == "nopage":
+        base = base.filter(Customer.page_no.is_(None))
+    order.append(Customer.name)
+    rows = base.order_by(*order).all()
+    if sort == "page":  # वहीसारखा नैसर्गिक क्रम: 5, 12A, 100 (अंक आधी, मग अक्षरे; पान नसलेले शेवटी)
+        want = q.translate(_DEVANAGARI).upper().strip() if q else None
+
+        def page_key(row):
+            p = row[0].page_no
+            m = re.match(r"\d+", p or "")
+            return (0 if (want and p == want) else 1, p is None,
+                    int(m.group()) if m else 10 ** 12, p or "", row[0].name)
+        rows.sort(key=page_key)
+    nopage_count = Customer.query.filter(Customer.page_no.is_(None)).count()
+    return render_template("customers.html", rows=rows, q=q, f=f, sort=sort, nopage_count=nopage_count)
 
 
 DUP_MSG = "हा मोबाईल नंबर आधीच “%s” या ग्राहकासाठी नोंदवलेला आहे. प्रत्येक ग्राहकाचा नंबर वेगळा हवा."
+DUP_PAGE_MSG = "हा पान क्रमांक आधीच “%s” या ग्राहकासाठी वापरलेला आहे. प्रत्येक ग्राहकाचा पान क्रमांक वेगळा हवा."
 
 
 def _customer_from_form(c):
     name = request.form.get("name", "").strip()
+    page_no = parse_page_no(request.form.get("page_no"))
     phone = parse_phone(request.form.get("phone"))
     if not name:
         flash("ग्राहकाचे नाव आवश्यक आहे.", "error")
+        return False
+    if not page_no:
+        flash("रजिस्टरचा पान क्रमांक आवश्यक आहे (अंक किंवा अक्षरे, जास्तीत जास्त १० – उदा. 12 किंवा 12A).", "error")
+        return False
+    other = Customer.query.filter(Customer.page_no == page_no, Customer.id != (c.id or 0)).first()
+    if other:
+        flash(DUP_PAGE_MSG % other.name, "error")
         return False
     if not phone:
         flash("मोबाईल नंबर आवश्यक आहे आणि तो अचूक १० अंकी असावा.", "error")
@@ -392,6 +444,7 @@ def _customer_from_form(c):
         flash(DUP_MSG % other.name, "error")
         return False
     c.name = name[:100]
+    c.page_no = page_no
     c.phone = phone
     c.address = request.form.get("address", "").strip()[:200] or None
     c.note = request.form.get("note", "").strip()[:200] or None
@@ -405,7 +458,7 @@ def _commit_customer(c):
         return True
     except IntegrityError:
         db.session.rollback()
-        flash(DUP_MSG % "दुसरा ग्राहक", "error")
+        flash("हा पान क्रमांक किंवा मोबाईल नंबर नुकताच दुसऱ्या ग्राहकासाठी वापरला गेला आहे. पुन्हा तपासा.", "error")
         return False
 
 
@@ -419,7 +472,8 @@ def customer_new():
             flash("ग्राहक जोडला: %s" % c.name, "success")
             return redirect(url_for("customer_detail", cid=c.id))
         c = Customer()
-    return render_template("customer_form.html", c=c, form=request.form, is_new=True)
+    return render_template("customer_form.html", c=c, form=request.form, is_new=True,
+                           last_page=last_page_hint())
 
 
 @app.route("/customers/<int:cid>")
@@ -454,7 +508,8 @@ def customer_edit(cid):
             return redirect(url_for("customer_detail", cid=c.id))
     db.session.rollback()
     c = db.get_or_404(Customer, cid)
-    return render_template("customer_form.html", c=c, form=request.form, is_new=False)
+    return render_template("customer_form.html", c=c, form=request.form, is_new=False,
+                           last_page=last_page_hint())
 
 
 @app.route("/customers/<int:cid>/delete", methods=["POST"])
@@ -537,9 +592,10 @@ def export_dues():
     out = io.StringIO()
     out.write("﻿")  # Excel ला मराठी (UTF-8) ओळखण्यासाठी
     w = csv.writer(out)
-    w.writerow(["नाव", "मोबाईल", "पत्ता", "बाकी रक्कम (₹)"])
+    w.writerow(["पान क्र.", "नाव", "मोबाईल", "पत्ता", "बाकी रक्कम (₹)"])
     for c, b in base.having(bal > 0).order_by(bal.desc()).all():
-        w.writerow([c.name, c.phone or "", c.address or "", inr(b, plain=True).replace(",", "")])
+        w.writerow([c.page_no or "", c.name, c.phone or "", c.address or "",
+                    inr(b, plain=True).replace(",", "")])
     return Response(out.getvalue(), mimetype="text/csv; charset=utf-8", headers={
         "Content-Disposition": "attachment; filename=baki-yadi-%s.csv" % today_ist().isoformat()})
 
@@ -606,14 +662,25 @@ def healthz():
 # --------------------------------------------------------------------------
 def init_db():
     db.create_all()
-    # जुन्या DB साठी (टेबल आधीच होते): फोन नंबरचा unique index. नवीन DB मध्ये तो आधीच तयार झालेला असतो.
+    # जुन्या DB साठी (टेबल आधीच होते): नवीन कॉलम 'page_no' आपोआप जोडा
     try:
-        db.session.execute(db.text(
-            "CREATE UNIQUE INDEX IF NOT EXISTS uq_customers_phone ON customers (phone)"))
-        db.session.commit()
-    except Exception as exc:  # आधीच डुप्लिकेट नंबर असतील तर
+        cols = {col["name"] for col in inspect(db.engine).get_columns("customers")}
+        if "page_no" not in cols:
+            db.session.execute(db.text("ALTER TABLE customers ADD COLUMN page_no VARCHAR(12)"))
+            db.session.commit()
+            print("✅ customers.page_no कॉलम जोडला", flush=True)
+    except Exception as exc:
         db.session.rollback()
-        print("⚠️ फोन नंबर unique index तयार झाला नाही (डुप्लिकेट नंबर आहेत?):", exc, flush=True)
+        print("⚠️ page_no कॉलम जोडता आला नाही:", exc, flush=True)
+    # जुन्या DB साठी unique index (नवीन DB मध्ये ते आधीच तयार झालेले असतात)
+    for idx, col in (("uq_customers_phone", "phone"), ("uq_customers_page_no", "page_no")):
+        try:
+            db.session.execute(db.text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS %s ON customers (%s)" % (idx, col)))
+            db.session.commit()
+        except Exception as exc:  # आधीच डुप्लिकेट असतील तर
+            db.session.rollback()
+            print("⚠️ %s unique index तयार झाला नाही (डुप्लिकेट आहेत?): %s" % (col, exc), flush=True)
     if User.query.count() == 0:
         username = os.environ.get("ADMIN_USERNAME", "admin")
         password = os.environ.get("ADMIN_PASSWORD")
