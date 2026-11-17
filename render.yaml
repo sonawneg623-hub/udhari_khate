@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: udhari-khate
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    # 1 worker + threads: टेबल तयार करताना (db.create_all) दोन workers मध्ये टक्कर होऊ नये म्हणून
+    startCommand: gunicorn app:app --workers 1 --threads 4 --timeout 60 --bind 0.0.0.0:$PORT
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL        # Supabase -> Connect -> Session pooler URL (खाली README पहा)
+        sync: false
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD      # पहिल्या लॉगिनसाठी; नंतर अ‍ॅपमधून बदला
+        sync: false
+      - key: SHOP_NAME
+        value: किराणा दुकान

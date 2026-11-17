@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{{ 'नवीन नोंद' if is_new else 'नोंद बदला' }}{% endblock %}
+{% block content %}
+{% set v = form if form else {} %}
+{% set kind = v.get('kind', e.kind) %}
+<div class="crumbs"><a href="{{ url_for('customer_detail', cid=c.id) }}">{{ ic('back') }} {{ c.name }}</a></div>
+<div class="page-head">
+  <h1>{{ 'नवीन नोंद' if is_new else 'नोंद बदला' }}</h1>
+</div>
+
+<form class="card form" method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+  <div class="kind-toggle" role="radiogroup" aria-label="नोंदीचा प्रकार">
+    <label class="kind kind-credit">
+      <input type="radio" name="kind" value="credit" {{ 'checked' if kind == 'credit' }}>
+      <span>{{ ic('up') }}<b>उधार दिले</b><small>ग्राहकाने माल घेतला</small></span>
+    </label>
+    <label class="kind kind-payment">
+      <input type="radio" name="kind" value="payment" {{ 'checked' if kind == 'payment' }}>
+      <span>{{ ic('down') }}<b>जमा झाले</b><small>ग्राहकाने पैसे दिले</small></span>
+    </label>
+  </div>
+
+  <label class="field">
+    <span>रक्कम <em>*</em></span>
+    <div class="amount-wrap">
+      <i>₹</i>
+      <input class="amount-input" type="text" name="amount" inputmode="decimal" required autofocus
+             value="{{ v.get('amount', e.amount_paise|amt) }}" placeholder="0">
+    </div>
+  </label>
+  <label class="field">
+    <span>तारीख</span>
+    <input type="date" name="entry_date" required value="{{ v.get('entry_date', e.entry_date.isoformat()) }}">
+  </label>
+  <label class="field">
+    <span>तपशील (काय घेतले?)</span>
+    <input type="text" id="noteInput" name="note" maxlength="200"
+           value="{{ v.get('note', e.note or '') }}" placeholder="उदा. महिन्याचे किराणा">
+    <div class="chips" aria-label="पटकन निवडा">
+      {% for t in ['किराणा', 'महिन्याचे सामान', 'तेल', 'तांदूळ-गहू', 'साखर-चहा', 'दूध', 'भाजीपाला'] %}
+      <button type="button" class="chip-btn" data-note="{{ t }}">{{ t }}</button>
+      {% endfor %}
+    </div>
+  </label>
+
+  <div class="actions">
+    <button class="btn btn-primary btn-lg" type="submit">{{ ic('check') }} जतन करा</button>
+    <a class="btn btn-ghost btn-lg" href="{{ url_for('customer_detail', cid=c.id) }}">रद्द करा</a>
+  </div>
+</form>
+{% endblock %}

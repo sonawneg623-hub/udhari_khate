@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}मुख्यपृष्ठ{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="hero-top">
+    <div>
+      <p class="hero-hello">नमस्कार 🙏</p>
+      <p class="hero-date">{{ today_label }}</p>
+    </div>
+    <span class="hero-badge">{{ due_count }} ग्राहक बाकी</span>
+  </div>
+  <p class="hero-label">एकूण बाकी उधारी</p>
+  <p class="hero-amount">{{ total_due|inr }}</p>
+  <div class="hero-mini">
+    <div><span>{{ ic('up') }} आजचा उधार</span><b>{{ today_credit|inr }}</b></div>
+    <div><span>{{ ic('down') }} आज जमा</span><b>{{ today_payment|inr }}</b></div>
+    <div><span>{{ ic('users') }} एकूण ग्राहक</span><b>{{ customer_total }}</b></div>
+  </div>
+</section>
+
+<section class="tiles">
+  <a class="tile" href="{{ url_for('customers') }}">{{ ic('users') }}<b>ग्राहक यादी</b><small>सर्व ग्राहक पहा</small></a>
+  <a class="tile tile-gold" href="{{ url_for('customer_new') }}">{{ ic('plus') }}<b>नवीन ग्राहक</b><small>नाव बोलून जोडा</small></a>
+  <a class="tile" href="{{ url_for('export_dues') }}">{{ ic('download') }}<b>बाकी यादी</b><small>Excel मध्ये डाउनलोड</small></a>
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>सर्वाधिक बाकी असलेले</h2><a class="link-more" href="{{ url_for('customers', f='due') }}">सर्व {{ ic('chev') }}</a></div>
+  {% if top_dues %}
+  <ul class="list">
+    {% for c, b in top_dues %}
+    <li>
+      <a class="row" href="{{ url_for('customer_detail', cid=c.id) }}">
+        <span class="avatar av-{{ c.id % 6 }}">{{ c.name[:1] }}</span>
+        <span class="row-main"><b>{{ c.name }}</b>{% if c.phone %}<small>{{ ic('phone') }} {{ c.phone }}</small>{% endif %}</span>
+        <span class="amount amount-due">{{ b|inr }}</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">कोणाकडेही उधारी बाकी नाही.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>अलीकडील नोंदी</h2></div>
+  {% if recent %}
+  <ul class="list">
+    {% for e in recent %}
+    <li>
+      <a class="row" href="{{ url_for('customer_detail', cid=e.customer_id) }}">
+        <span class="txn-ico {{ 'is-credit' if e.kind == 'credit' else 'is-pay' }}">{{ ic('up' if e.kind == 'credit' else 'down') }}</span>
+        <span class="row-main"><b>{{ e.customer.name }}</b><small>{{ e.entry_date|mdate(short=True) }}{% if e.note %} · {{ e.note }}{% endif %}</small></span>
+        <span class="amount {{ 'amount-due' if e.kind == 'credit' else 'amount-ok' }}">{{ '+' if e.kind == 'credit' else '−' }}{{ e.amount_paise|inr }}</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">अजून कोणतीही नोंद नाही. आधी ग्राहक जोडा, मग उधार नोंदवा.</p>
+  {% endif %}
+</section>
+{% endblock %}

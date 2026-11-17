@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="mr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}{{ shop_name }}{% endblock %} – उधारी खाते</title>
+  <meta name="theme-color" content="#0d3b2c">
+  <meta name="description" content="किराणा दुकानासाठी ग्राहक उधारी व्यवस्थापन">
+  <link rel="manifest" href="{{ url_for('manifest') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='icons/favicon-32.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="उधारी खाते">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v=asset_v) }}">
+</head>
+<body class="{% block body_class %}{% endblock %}">
+{% include "_icons.html" %}
+{% block shell %}
+  <header class="shopfront">
+    <div class="topbar">
+      <a class="brand" href="{{ url_for('dashboard') }}">
+        <span class="brand-mark">{{ ic('basket') }}</span>
+        <span class="brand-text"><b>{{ shop_name }}</b><small>उधारी खाते</small></span>
+      </a>
+      <nav class="nav" aria-label="मुख्य मेनू">
+        <a href="{{ url_for('dashboard') }}" class="{{ 'on' if request.endpoint == 'dashboard' }}">{{ ic('home') }}<span>मुख्यपृष्ठ</span></a>
+        <a href="{{ url_for('customers') }}" class="{{ 'on' if request.endpoint in ('customers', 'customer_detail', 'customer_edit', 'entry_new', 'entry_edit') }}">{{ ic('users') }}<span>ग्राहक</span></a>
+        <a href="{{ url_for('customer_new') }}" class="nav-fab {{ 'on' if request.endpoint == 'customer_new' }}" aria-label="नवीन ग्राहक">{{ ic('plus') }}<span>नवीन ग्राहक</span></a>
+        <a href="{{ url_for('export_dues') }}">{{ ic('download') }}<span>बाकी यादी</span></a>
+        <a href="{{ url_for('change_password') }}" class="{{ 'on' if request.endpoint == 'change_password' }}">{{ ic('key') }}<span>पासवर्ड</span></a>
+      </nav>
+      <form method="post" action="{{ url_for('logout') }}" class="logout">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="logout-btn" type="submit" title="बाहेर पडा" aria-label="बाहेर पडा">{{ ic('logout') }}<span>बाहेर पडा</span></button>
+      </form>
+    </div>
+  </header>
+
+  <main class="page">
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+      {% if msgs %}
+        <div class="flashes" role="status">
+          {% for cat, m in msgs %}<div class="flash flash-{{ cat }}">{{ ic('check' if cat == 'success' else 'sparkle') }}<span>{{ m }}</span></div>{% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="foot">
+    <button id="installBtn" class="btn btn-soft btn-sm" hidden>{{ ic('install') }} अ‍ॅप इन्स्टॉल करा</button>
+    <p>{{ shop_name }} · उधारी खाते</p>
+  </footer>
+{% endblock %}
+  <script src="{{ url_for('static', filename='js/app.js', v=asset_v) }}" defer></script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}लॉगिन{% endblock %}
+{% block body_class %}auth-body{% endblock %}
+{% block shell %}
+<main class="auth-wrap">
+  <div class="auth-hero">
+    <span class="auth-mark">{{ ic('basket') }}</span>
+    <h1>{{ shop_name }}</h1>
+    <p>उधारी खाते · अ‍ॅडमिन लॉगिन</p>
+  </div>
+
+  <div class="auth-card">
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+      {% for cat, m in msgs %}<div class="flash flash-{{ cat }}">{{ ic('sparkle') }}<span>{{ m }}</span></div>{% endfor %}
+    {% endwith %}
+    <form method="post" autocomplete="on">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="field">
+        <span>वापरकर्ता नाव</span>
+        <input type="text" name="username" autocomplete="username" autocapitalize="none" required autofocus>
+      </label>
+      <label class="field">
+        <span>पासवर्ड</span>
+        <input type="password" name="password" autocomplete="current-password" required>
+      </label>
+      <button class="btn btn-primary btn-block btn-lg" type="submit">लॉगिन करा</button>
+    </form>
+  </div>
+  <p class="auth-foot">हिशोब चोख · व्यवहार पारदर्शक</p>
+</main>
+{% endblock %}

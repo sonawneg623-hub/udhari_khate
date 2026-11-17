@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="mr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>इंटरनेट नाही – उधारी खाते</title>
+  <meta name="theme-color" content="#0d3b2c">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v=asset_v) }}">
+</head>
+<body class="auth-body">
+{% include "_icons.html" %}
+  <main class="auth-wrap">
+    <div class="auth-hero">
+      <span class="auth-mark">{{ ic('offline') }}</span>
+      <h1>इंटरनेट नाही</h1>
+      <p>तुमचा फोन ऑफलाइन आहे</p>
+    </div>
+    <div class="auth-card">
+      <p class="muted">उधारीच्या नोंदी सुरक्षित ठेवण्यासाठी त्या फक्त इंटरनेट चालू असताना जतन होतात. इंटरनेट सुरू करून पुन्हा प्रयत्न करा.</p>
+      <button class="btn btn-primary btn-block btn-lg" onclick="location.reload()">पुन्हा प्रयत्न करा</button>
+    </div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}ग्राहक{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>ग्राहक</h1>
+  <a class="btn btn-gold btn-sm" href="{{ url_for('customer_new') }}">{{ ic('plus') }} नवीन ग्राहक</a>
+</div>
+
+<form class="search" method="get" action="{{ url_for('customers') }}">
+  {% if only_due %}<input type="hidden" name="f" value="due">{% endif %}
+  <span class="search-box">
+    {{ ic('search') }}
+    <input type="search" name="q" value="{{ q }}" placeholder="नाव किंवा मोबाईल शोधा" aria-label="शोधा">
+  </span>
+  <button class="btn btn-primary" type="submit">शोधा</button>
+</form>
+
+<div class="seg">
+  <a class="{{ '' if only_due else 'on' }}" href="{{ url_for('customers', q=q or None) }}">सर्व</a>
+  <a class="{{ 'on' if only_due else '' }}" href="{{ url_for('customers', f='due', q=q or None) }}">बाकी असलेले</a>
+</div>
+
+<section class="card">
+  {% if rows %}
+  <p class="muted count">एकूण {{ rows|length }} ग्राहक</p>
+  <ul class="list">
+    {% for c, b in rows %}
+    <li>
+      <a class="row" href="{{ url_for('customer_detail', cid=c.id) }}">
+        <span class="avatar av-{{ c.id % 6 }}">{{ c.name[:1] }}</span>
+        <span class="row-main">
+          <b>{{ c.name }}</b>
+          <small>{% if c.phone %}{{ ic('phone') }} {{ c.phone }}{% endif %}{% if c.phone and c.address %} · {% endif %}{{ c.address or '' }}</small>
+        </span>
+        {% if b > 0 %}<span class="amount amount-due">{{ b|inr }}</span>
+        {% elif b < 0 %}<span class="pill pill-ok">आगाऊ {{ (-b)|inr }}</span>
+        {% else %}<span class="pill">बाकी नाही</span>{% endif %}
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">
+    {% if q %}“{{ q }}” साठी कोणीही सापडले नाही.
+    {% elif only_due %}कोणाकडेही उधारी बाकी नाही.
+    {% else %}अजून कोणताही ग्राहक नाही. <a href="{{ url_for('customer_new') }}">पहिला ग्राहक जोडा</a>.{% endif %}
+  </p>
+  {% endif %}
+</section>
+{% endblock %}

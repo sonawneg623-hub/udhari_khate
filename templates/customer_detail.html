@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{{ c.name }}{% endblock %}
+{% block content %}
+<div class="crumbs"><a href="{{ url_for('customers') }}">{{ ic('back') }} सर्व ग्राहक</a></div>
+
+<section class="card profile">
+  <div class="profile-top">
+    <span class="avatar avatar-lg av-{{ c.id % 6 }}">{{ c.name[:1] }}</span>
+    <div class="profile-info">
+      <h1>{{ c.name }}</h1>
+      {% if c.phone %}<p><a href="tel:+91{{ c.phone }}">{{ ic('phone') }} {{ c.phone }}</a></p>{% endif %}
+      {% if c.address %}<p>{{ ic('pin') }} {{ c.address }}</p>{% endif %}
+      {% if c.note %}<p class="muted">{{ ic('note') }} {{ c.note }}</p>{% endif %}
+    </div>
+  </div>
+
+  <div class="balance {{ 'balance-due' if balance > 0 else 'balance-ok' }}">
+    <span class="balance-label">{% if balance > 0 %}एकूण बाकी{% elif balance < 0 %}आगाऊ जमा{% else %}हिशोब पूर्ण{% endif %}</span>
+    <strong>{{ (balance if balance >= 0 else -balance)|inr }}</strong>
+    <div class="balance-split">
+      <span>उधार <b>{{ total_credit|inr }}</b></span>
+      <span>जमा <b>{{ total_paid|inr }}</b></span>
+    </div>
+  </div>
+
+  <div class="cta">
+    <a class="btn btn-due btn-lg" href="{{ url_for('entry_new', cid=c.id, kind='credit') }}">{{ ic('up') }} उधार नोंदवा</a>
+    <a class="btn btn-primary btn-lg" href="{{ url_for('entry_new', cid=c.id, kind='payment') }}">{{ ic('down') }} जमा घ्या</a>
+  </div>
+  <div class="actions actions-sm">
+    {% if wa %}<a class="btn btn-wa btn-sm" href="{{ wa }}" target="_blank" rel="noopener">{{ ic('chat') }} WhatsApp आठवण</a>{% endif %}
+    <a class="btn btn-soft btn-sm" href="{{ url_for('customer_edit', cid=c.id) }}">{{ ic('edit') }} बदला</a>
+    <button class="btn btn-soft btn-sm" type="button" data-print>{{ ic('print') }} प्रिंट</button>
+    <form method="post" action="{{ url_for('customer_delete', cid=c.id) }}"
+          data-confirm="“{{ c.name }}” हा ग्राहक व त्याच्या सर्व नोंदी कायमच्या काढायच्या? हे परत मिळणार नाही.">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="btn btn-danger btn-sm" type="submit">{{ ic('trash') }} काढा</button>
+    </form>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>{{ ic('book') }} खातेवही</h2></div>
+  {% if rows %}
+  <ul class="txns">
+    {% for e, run in rows %}
+    <li class="txn">
+      <span class="txn-ico {{ 'is-credit' if e.kind == 'credit' else 'is-pay' }}">{{ ic('up' if e.kind == 'credit' else 'down') }}</span>
+      <div class="txn-main">
+        <b>{{ e.note or ('उधार' if e.kind == 'credit' else 'जमा') }}</b>
+        <small>{{ e.entry_date|mdate }}</small>
+      </div>
+      <div class="txn-amt">
+        <span class="amount {{ 'amount-due' if e.kind == 'credit' else 'amount-ok' }}">{{ '+' if e.kind == 'credit' else '−' }}{{ e.amount_paise|inr }}</span>
+        <small>बाकी {{ run|inr }}</small>
+      </div>
+      <div class="txn-act noprint">
+        <a class="icon-btn" href="{{ url_for('entry_edit', eid=e.id) }}" title="बदला" aria-label="नोंद बदला">{{ ic('edit') }}</a>
+        <form method="post" action="{{ url_for('entry_delete', eid=e.id) }}" data-confirm="ही नोंद ({{ e.amount_paise|inr }}) काढायची?">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="icon-btn icon-danger" type="submit" title="काढा" aria-label="नोंद काढा">{{ ic('trash') }}</button>
+        </form>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">या ग्राहकाची अजून कोणतीही नोंद नाही. वरून “उधार नोंदवा” दाबा.</p>
+  {% endif %}
+</section>
+{% endblock %}
