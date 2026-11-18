@@ -12,14 +12,26 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="उधारी खाते">
+  <script>document.documentElement.className += " js";</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+  {# फॉन्ट CSS पान अडवत नाही (async). लोड झाल्यावर swap होतो; तोपर्यंत सिस्टम मराठी फॉन्ट दिसतो. #}
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap"></noscript>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v=asset_v) }}">
 </head>
 <body class="{% block body_class %}{% endblock %}">
 {% include "_icons.html" %}
+<div id="navProgress" class="progress" aria-hidden="true"></div>
+<div id="loader" class="loader" hidden role="status" aria-live="polite">
+  <div class="loader-card">
+    <span class="loader-mark">{{ ic('basket') }}</span>
+    <p id="loaderText">लोड होत आहे…</p>
+  </div>
+</div>
 {% block shell %}
+  {% set ep = request.endpoint %}
+  {% set cust_on = ep in ('customers', 'customer_detail', 'customer_edit', 'entry_new', 'entry_edit') %}
   <header class="shopfront">
     <div class="topbar">
       <a class="brand" href="{{ url_for('dashboard') }}">
@@ -27,11 +39,11 @@
         <span class="brand-text"><b>{{ shop_name }}</b><small>उधारी खाते</small></span>
       </a>
       <nav class="nav" aria-label="मुख्य मेनू">
-        <a href="{{ url_for('dashboard') }}" class="{{ 'on' if request.endpoint == 'dashboard' }}">{{ ic('home') }}<span>मुख्यपृष्ठ</span></a>
-        <a href="{{ url_for('customers') }}" class="{{ 'on' if request.endpoint in ('customers', 'customer_detail', 'customer_edit', 'entry_new', 'entry_edit') }}">{{ ic('users') }}<span>ग्राहक</span></a>
-        <a href="{{ url_for('customer_new') }}" class="nav-fab {{ 'on' if request.endpoint == 'customer_new' }}" aria-label="नवीन ग्राहक">{{ ic('plus') }}<span>नवीन ग्राहक</span></a>
+        <a href="{{ url_for('dashboard') }}" class="{{ 'on' if ep == 'dashboard' }}">{{ ic('home') }}<span>मुख्यपृष्ठ</span>{% if ep == 'dashboard' %}<i class="nav-ind"></i>{% endif %}</a>
+        <a href="{{ url_for('customers') }}" class="{{ 'on' if cust_on }}">{{ ic('users') }}<span>ग्राहक</span>{% if cust_on %}<i class="nav-ind"></i>{% endif %}</a>
+        <a href="{{ url_for('customer_new') }}" class="nav-fab {{ 'on' if ep == 'customer_new' }}" aria-label="नवीन ग्राहक">{{ ic('plus') }}<span>नवीन ग्राहक</span></a>
         <a href="{{ url_for('export_dues') }}">{{ ic('download') }}<span>बाकी यादी</span></a>
-        <a href="{{ url_for('change_password') }}" class="{{ 'on' if request.endpoint == 'change_password' }}">{{ ic('key') }}<span>पासवर्ड</span></a>
+        <a href="{{ url_for('change_password') }}" class="{{ 'on' if ep == 'change_password' }}">{{ ic('key') }}<span>पासवर्ड</span>{% if ep == 'change_password' %}<i class="nav-ind"></i>{% endif %}</a>
       </nav>
       <form method="post" action="{{ url_for('logout') }}" class="logout">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

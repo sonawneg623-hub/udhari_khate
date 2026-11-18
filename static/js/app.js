@@ -1,6 +1,8 @@
 (function () {
   "use strict";
 
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
   // ---------- PWA: service worker ----------
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", function () {
@@ -30,6 +32,47 @@
     if (installBtn) installBtn.hidden = true;
   });
 
+  // ---------- पान बदलताना: प्रगती-रेषा + लोडिंग पडदा ----------
+  // टॅप केल्यावर लगेच प्रतिसाद दिसतो. ०.७ सेकंदानंतरही पान आले नाही तर पडदा; ५ सेकंदानंतर "सर्व्हर सुरू होत आहे" संदेश
+  // (Render free सर्व्हर झोपलेला असताना पहिल्यांदा ३०-६० सेकंद लागू शकतात).
+  var progress = document.getElementById("navProgress");
+  var loader = document.getElementById("loader");
+  var loaderText = document.getElementById("loaderText");
+  var tShow = null, tSlow = null;
+
+  function navStart() {
+    if (progress) {
+      progress.classList.remove("run");
+      void progress.offsetWidth; // animation पुन्हा सुरू करण्यासाठी
+      progress.classList.add("run");
+    }
+    clearTimeout(tShow); clearTimeout(tSlow);
+    tShow = setTimeout(function () { if (loader) loader.hidden = false; }, 700);
+    tSlow = setTimeout(function () {
+      if (loaderText) loaderText.textContent = "सर्व्हर सुरू होत आहे… पहिल्यांदा थोडा वेळ लागू शकतो, कृपया थांबा";
+    }, 5000);
+  }
+  function navEnd() {
+    clearTimeout(tShow); clearTimeout(tSlow);
+    if (progress) progress.classList.remove("run");
+    if (loader) loader.hidden = true;
+    if (loaderText) loaderText.textContent = "लोड होत आहे…";
+  }
+  // Back बटणाने (bfcache मधून) परत आल्यावर पडदा लपवा
+  window.addEventListener("pageshow", navEnd);
+
+  document.addEventListener("click", function (e) {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    var a = e.target.closest && e.target.closest("a[href]");
+    if (!a || (a.target && a.target !== "_self") || a.hasAttribute("download")) return;
+    var u;
+    try { u = new URL(a.href, location.href); } catch (err) { return; }
+    if (u.origin !== location.origin) return;                       // tel:, wa.me, इतर साइट्स
+    if (u.pathname.indexOf("/export/") === 0) return;               // CSV डाउनलोड
+    if (u.pathname === location.pathname && u.search === location.search) return; // त्याच पानावर / #anchor
+    navStart();
+  });
+
   // ---------- डिलीटपूर्वी खात्री + दोनदा सबमिट टाळा ----------
   document.addEventListener("submit", function (e) {
     var form = e.target;
@@ -42,6 +85,7 @@
     if (btn && !e.defaultPrevented) {
       setTimeout(function () { btn.disabled = true; }, 0);
     }
+    if (!e.defaultPrevented) navStart();
   });
 
   document.addEventListener("click", function (e) {
@@ -53,14 +97,100 @@
     }
   });
 
-  // संदेश आपोआप लपवा
-  setTimeout(function () {
-    document.querySelectorAll(".flash-success").forEach(function (el) {
-      el.style.transition = "opacity .5s";
-      el.style.opacity = "0";
-      setTimeout(function () { el.remove(); }, 600);
-    });
-  }, 4500);
+  // ---------- स्पर्श-प्रतिसाद: ripple + हलकी कंपने ----------
+  var RIPPLE_SEL = ".btn, .tile, .row, .icon-btn, .chip-btn, .logout-btn, .seg a";
+  document.addEventListener("pointerdown", function (e) {
+    if (reduceMotion) return;
+    var el = e.target.closest && e.target.closest(RIPPLE_SEL);
+    if (!el || el.disabled) return;
+    var r = el.getBoundingClientRect();
+    var size = Math.max(r.width, r.height) * 2;
+    var s = document.createElement("span");
+    s.className = "rip";
+    s.style.width = s.style.height = size + "px";
+    s.style.left = (e.clientX - r.left - size / 2) + "px";
+    s.style.top = (e.clientY - r.top - size / 2) + "px";
+    el.appendChild(s);
+    s.addEventListener("animationend", function () { s.remove(); });
+  }, { passive: true });
+
+  var canVibrate = typeof navigator.vibrate === "function";
+  document.addEventListener("click", function (e) {
+    if (!canVibrate || reduceMotion) return;
+    if (e.target.closest && e.target.closest(".btn, .tile, .nav a, .chip-btn, .icon-btn, .seg a, .row")) {
+      try { navigator.vibrate(6); } catch (err) {}
+    }
+  });
+
+  // ---------- यशस्वी संदेश (toast) आपोआप बाहेर जातो ----------
+  document.querySelectorAll(".flash-success").forEach(function (el, i) {
+    setTimeout(function () {
+      el.classList.add("out");
+      setTimeout(function () { el.remove(); }, 360);
+    }, 3400 + i * 300);
+  });
+
+  // ---------- रक्कम count-up (₹0 -> खरी रक्कम) ----------
+  function fmtINR(p) {            // app.py मधील inr() सारखेच: ₹1,23,456.78
+    var neg = p < 0; p = Math.abs(p);
+    var whole = String(Math.floor(p / 100)), frac = p % 100;
+    if (whole.length > 3) {
+      var head = whole.slice(0, -3), tail = whole.slice(-3), parts = [];
+      while (head.length > 2) { parts.unshift(head.slice(-2)); head = head.slice(0, -2); }
+      if (head) parts.unshift(head);
+      whole = parts.concat([tail]).join(",");
+    }
+    return (neg ? "-" : "") + "₹" + whole + (frac ? "." + ("0" + frac).slice(-2) : "");
+  }
+  window.__fmtINR = fmtINR;
+
+  document.querySelectorAll("[data-paise]").forEach(function (el) {
+    var target = parseInt(el.getAttribute("data-paise"), 10);
+    if (isNaN(target) || target <= 0 || reduceMotion) { el.classList.add("counted"); return; }
+    var dur = 750, t0 = null;
+    el.textContent = fmtINR(0);
+    el.classList.add("counted");
+    function frame(ts) {
+      if (t0 === null) t0 = ts;
+      var k = Math.min(1, (ts - t0) / dur);
+      var eased = 1 - Math.pow(1 - k, 3);
+      if (k < 1) {
+        el.textContent = fmtINR(Math.round(target * eased / 100) * 100);
+        requestAnimationFrame(frame);
+      } else {
+        el.textContent = fmtINR(target);
+      }
+    }
+    requestAnimationFrame(frame);
+  });
+
+  // ---------- इंटरनेट गेले / आले ----------
+  var net = document.createElement("div");
+  net.className = "net-banner";
+  net.hidden = true;
+  net.setAttribute("role", "status");
+  document.body.appendChild(net);
+  var netTimer = null;
+  function showNet(text, good, autoHide) {
+    clearTimeout(netTimer);
+    net.textContent = text;
+    net.className = "net-banner" + (good ? " good" : "");
+    net.hidden = false;
+    if (autoHide) netTimer = setTimeout(function () { net.hidden = true; }, 2200);
+  }
+  window.addEventListener("offline", function () { showNet("इंटरनेट नाही – नोंदी जतन होणार नाहीत", false, false); });
+  window.addEventListener("online", function () { showNet("इंटरनेट परत आले", true, true); });
+  if (navigator.onLine === false) showNet("इंटरनेट नाही – नोंदी जतन होणार नाहीत", false, false);
+
+  // ---------- सर्व्हर जागा ठेवा (अ‍ॅप उघडे असताना) ----------
+  // Render free सर्व्हर १५ मिनिटे वापर नसल्यास झोपतो. अ‍ॅप उघडे असताना दर ४ मिनिटांनी आणि परत उघडल्यावर हलकी ping.
+  function warm() {
+    if (document.visibilityState === "visible" && navigator.onLine !== false) {
+      fetch("/healthz", { cache: "no-store", credentials: "omit" }).catch(function () {});
+    }
+  }
+  setInterval(warm, 4 * 60 * 1000);
+  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") warm(); });
 
   var DEV = "०१२३४५६७८९";
   function devToAscii(s) {
@@ -126,7 +256,6 @@
 
     var iconEl = status.querySelector("svg");
     var icon = iconEl ? iconEl.outerHTML : "";
-    var idle = status.textContent.trim();
     var rec = null, listening = false, gotText = false, failed = false;
 
     function say(text, cls) {
@@ -191,9 +320,6 @@
       };
       try { rec.start(); } catch (err) { say("माइक सुरू करता आला नाही. पुन्हा प्रयत्न करा.", "err"); }
     });
-
-    // शोध पान उघडल्यावर स्थिती पुन्हा मूळ मजकुरावर
-    if (!status.textContent.trim()) say(idle || "", "");
   }
 
   document.querySelectorAll("[data-mic-for]").forEach(setupMic);

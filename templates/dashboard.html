@@ -10,11 +10,11 @@
     <span class="hero-badge">{{ due_count }} ग्राहक बाकी</span>
   </div>
   <p class="hero-label">एकूण बाकी उधारी</p>
-  <p class="hero-amount">{{ total_due|inr }}</p>
+  <p class="hero-amount" data-paise="{{ total_due }}">{{ total_due|inr }}</p>
   <div class="hero-mini">
-    <div><span>{{ ic('up') }} आजचा उधार</span><b>{{ today_credit|inr }}</b></div>
-    <div><span>{{ ic('down') }} आज जमा</span><b>{{ today_payment|inr }}</b></div>
-    <div><span>{{ ic('users') }} एकूण ग्राहक</span><b>{{ customer_total }}</b></div>
+    <div><span>{{ ic('up') }} आजचा उधार</span><b data-paise="{{ today_credit }}">{{ today_credit|inr }}</b></div>
+    <div><span>{{ ic('down') }} आज जमा</span><b data-paise="{{ today_payment }}">{{ today_payment|inr }}</b></div>
+    <div><span>{{ ic('users') }} ग्राहक</span><b>{{ customer_total }}</b></div>
   </div>
 </section>
 

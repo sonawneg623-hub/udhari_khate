@@ -207,10 +207,10 @@ input:focus { outline: none; border-color: var(--em-600); background: #fff; box-
 .hero-badge { background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.2); border-radius: 999px; padding: 4px 12px; font-size: .82rem; font-weight: 600; white-space: nowrap; }
 .hero-label { margin: 16px 0 0; color: var(--gold-light); font-weight: 600; font-size: .9rem; letter-spacing: .03em; }
 .hero-amount { margin: 0; font: 700 2.6rem/1.15 var(--font-head); letter-spacing: -.02em; }
-.hero-mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; }
+.hero-mini { display: grid; grid-template-columns: 1.35fr 1.35fr .8fr; gap: 8px; margin-top: 16px; }
 .hero-mini > div { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.14); border-radius: 14px; padding: 9px 10px; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .hero-mini span { font-size: .72rem; color: rgba(255,255,255,.75); display: flex; align-items: center; gap: 4px; white-space: nowrap; }
-.hero-mini b { font: 600 1rem var(--font-head); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hero-mini b { font: 600 clamp(.8rem, 3.5vw, 1rem) var(--font-head); white-space: nowrap; letter-spacing: -.02em; }
 @media (min-width: 761px) { .hero { padding: 26px; } .hero-amount { font-size: 3.2rem; } }
 
 .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
@@ -293,6 +293,132 @@ input:focus { outline: none; border-color: var(--em-600); background: #fff; box-
 .auth-card { background: #fff; border-radius: var(--r-lg); padding: 24px 22px; box-shadow: 0 24px 60px rgba(0,0,0,.35); text-align: left; }
 .auth-card .muted { margin-top: 0; text-align: center; }
 .auth-foot { color: rgba(255,255,255,.6); margin-top: 22px; font-size: .85rem; letter-spacing: .06em; }
+
+/* =====================================================================
+   v4 – सुरळीत हालचाल (smooth motion). सर्व काही prefers-reduced-motion ला मान देते.
+   ===================================================================== */
+
+/* ---- पान बदलताना crossfade (Chrome/Edge 126+, Safari 18.2+; इतरत्र आपोआप नेहमीसारखे) ---- */
+@view-transition { navigation: auto; }
+.shopfront { view-transition-name: topbar; padding-top: env(safe-area-inset-top, 0px); }
+@media (max-width: 760px) { .nav { view-transition-name: tabbar; } }
+.nav-ind { view-transition-name: nav-ind; }
+::view-transition-old(root) { animation: vt-out .16s ease both; }
+::view-transition-new(root) { animation: vt-in .26s ease both; }
+@keyframes vt-out { to { opacity: 0; } }
+@keyframes vt-in { from { opacity: 0; } }
+::view-transition-group(nav-ind) { animation-duration: .34s; animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
+
+/* ---- मेनूमधील सरकणारा सक्रिय निर्देशक ---- */
+.nav a { position: relative; }
+.nav-ind { position: absolute; display: block; border-radius: 3px; pointer-events: none; }
+@media (max-width: 760px) {
+  .nav-ind { left: 50%; bottom: -3px; width: 20px; height: 3px; margin-left: -10px; background: var(--em-700); }
+  .nav a.on .ic { animation: navpop .45s cubic-bezier(.2, .9, .3, 1.5); }
+}
+@media (min-width: 761px) {
+  .nav-ind { left: 22%; right: 22%; bottom: 2px; height: 2px; background: var(--gold); }
+}
+@keyframes navpop { 0% { transform: translateY(3px) scale(.85); } 100% { transform: none; } }
+
+/* ---- पान उघडताना कार्ड्स हळूहळू वर येतात ---- */
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+.page > *:not(.flashes) { animation: rise .46s cubic-bezier(.2, .8, .2, 1) both; }
+.page > *:nth-child(2) { animation-delay: .04s; }
+.page > *:nth-child(3) { animation-delay: .08s; }
+.page > *:nth-child(4) { animation-delay: .12s; }
+.page > *:nth-child(5) { animation-delay: .16s; }
+.page > *:nth-child(n+6) { animation-delay: .2s; }
+.list li, .txns .txn { animation: rise .4s cubic-bezier(.2, .8, .2, 1) both; }
+.list li:nth-child(1), .txns .txn:nth-child(1) { animation-delay: .10s; }
+.list li:nth-child(2), .txns .txn:nth-child(2) { animation-delay: .14s; }
+.list li:nth-child(3), .txns .txn:nth-child(3) { animation-delay: .18s; }
+.list li:nth-child(4), .txns .txn:nth-child(4) { animation-delay: .22s; }
+.list li:nth-child(5), .txns .txn:nth-child(5) { animation-delay: .26s; }
+.list li:nth-child(6), .txns .txn:nth-child(6) { animation-delay: .30s; }
+.list li:nth-child(7), .txns .txn:nth-child(7) { animation-delay: .34s; }
+.list li:nth-child(8), .txns .txn:nth-child(8) { animation-delay: .38s; }
+.list li:nth-child(n+9), .txns .txn:nth-child(n+9) { animation: none; }  /* लांब यादी लगेच दिसावी */
+
+/* ---- मुखपृष्ठ हिरोवर एकदा सोनेरी चमक ---- */
+.hero::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; transform: translateX(-100%);
+  background: linear-gradient(110deg, transparent 32%, rgba(255, 255, 255, .13) 50%, transparent 68%);
+  animation: sheen 1.5s .55s ease-out 1 forwards;
+}
+@keyframes sheen { to { transform: translateX(100%); } }
+
+/* ---- रक्कम count-up: JS नसेल/अयशस्वी झाले तरी १.५ सेकंदात रक्कम दिसतेच ---- */
+.js [data-paise]:not(.counted) { opacity: 0; animation: showAnyway 0s 1.5s forwards; }
+.js [data-paise].counted { opacity: 1; transition: opacity .2s; }
+@keyframes showAnyway { to { opacity: 1; } }
+
+/* ---- स्पर्श-प्रतिसाद: दाबल्यावर लगेच दिसतो ---- */
+a, button, input, select, label { touch-action: manipulation; }
+.nav, .btn, .tile, .seg, .icon-btn, .chip-btn, .logout-btn, .mic-btn { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.btn:active { transform: translateY(1px) scale(.97); }
+.tile:active { transform: scale(.96); }
+.row:active { transform: scale(.992); background: var(--em-100); }
+.nav a:active { transform: scale(.92); }
+.nav a { transition: transform .12s ease, color .2s ease; }
+.row, .tile { transition: transform .12s ease, background .15s, box-shadow .2s; }
+
+/* ---- Ripple (स्पर्शाच्या ठिकाणाहून लहर) ---- */
+.btn, .tile, .row, .icon-btn, .chip-btn, .logout-btn, .seg a { position: relative; overflow: hidden; }
+.rip { position: absolute; border-radius: 50%; pointer-events: none; background: currentColor; opacity: .2; transform: scale(0); animation: rip .6s ease-out forwards; }
+@keyframes rip { to { transform: scale(1); opacity: 0; } }
+
+/* ---- यशस्वी संदेश: वरून उतरणारा toast; त्रुटी: हलकेसे थरथरते ---- */
+.flash-success {
+  position: fixed; left: 50%; top: calc(78px + env(safe-area-inset-top, 0px)); width: min(92vw, 520px); z-index: 80;
+  transform: translateX(-50%); animation: toastIn .5s cubic-bezier(.2, .9, .3, 1.15) both;
+  box-shadow: 0 10px 30px rgba(13, 59, 44, .22);
+}
+.flash-success.out { animation: toastOut .34s ease forwards; }
+@keyframes toastIn { from { opacity: 0; transform: translate(-50%, -22px) scale(.96); } }
+@keyframes toastOut { to { opacity: 0; transform: translate(-50%, -16px) scale(.97); } }
+.flash-success .ic { animation: iconpop .55s .12s cubic-bezier(.2, .9, .3, 1.7) both; }
+@keyframes iconpop { from { transform: scale(0) rotate(-45deg); } }
+.flash-error { animation: shake .42s ease both; }
+@keyframes shake { 20% { transform: translateX(-6px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+
+/* ---- वरची प्रगती-रेषा + लोडिंग पडदा (टॅप केल्यावर लगेच प्रतिसाद; सर्व्हर झोपलेला असतानाही) ---- */
+.progress {
+  position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 100; pointer-events: none; opacity: 0;
+  transform: scaleX(0); transform-origin: left; background: linear-gradient(90deg, var(--gold), var(--em-600));
+  box-shadow: 0 0 10px rgba(212, 166, 42, .6);
+}
+.progress.run { opacity: 1; animation: prog 9s cubic-bezier(.1, .7, .2, 1) forwards; }
+@keyframes prog { 0% { transform: scaleX(.03); } 25% { transform: scaleX(.5); } 100% { transform: scaleX(.93); } }
+.loader {
+  position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 24px;
+  background: rgba(250, 248, 242, .74); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: fadeIn .25s both;
+}
+.loader[hidden] { display: none; }
+@keyframes fadeIn { from { opacity: 0; } }
+.loader-card { text-align: center; max-width: 300px; color: var(--em-900); font-weight: 600; }
+.loader-card p { margin: 10px 0 0; }
+.loader-mark {
+  display: inline-grid; place-items: center; width: 64px; height: 64px; border-radius: 20px; font-size: 1.9rem; color: var(--em-950);
+  background: linear-gradient(145deg, #f4e1a1, var(--gold)); box-shadow: 0 10px 26px rgba(138, 107, 18, .35);
+  animation: bounce 1s ease-in-out infinite;
+}
+@keyframes bounce { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-12px) rotate(4deg); } }
+
+/* ---- इंटरनेट गेले/आले ---- */
+.net-banner {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 120; text-align: center; color: #fff; font-weight: 600; font-size: .88rem;
+  padding: calc(6px + env(safe-area-inset-top, 0px)) 12px 6px; background: var(--ruby); animation: slideDown .3s ease both;
+}
+.net-banner.good { background: var(--em-700); }
+.net-banner[hidden] { display: none; }
+@keyframes slideDown { from { transform: translateY(-100%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+  .js [data-paise]:not(.counted) { opacity: 1; }
+  .hero::after { display: none; }
+}
 
 /* ---------- Print ---------- */
 @media print {

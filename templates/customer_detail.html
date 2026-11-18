@@ -18,10 +18,10 @@
 
   <div class="balance {{ 'balance-due' if balance > 0 else 'balance-ok' }}">
     <span class="balance-label">{% if balance > 0 %}एकूण बाकी{% elif balance < 0 %}आगाऊ जमा{% else %}हिशोब पूर्ण{% endif %}</span>
-    <strong>{{ (balance if balance >= 0 else -balance)|inr }}</strong>
+    <strong data-paise="{{ balance|abs }}">{{ (balance if balance >= 0 else -balance)|inr }}</strong>
     <div class="balance-split">
-      <span>उधार <b>{{ total_credit|inr }}</b></span>
-      <span>जमा <b>{{ total_paid|inr }}</b></span>
+      <span>उधार <b data-paise="{{ total_credit }}">{{ total_credit|inr }}</b></span>
+      <span>जमा <b data-paise="{{ total_paid }}">{{ total_paid|inr }}</b></span>
     </div>
   </div>
 

@@ -1,15 +1,18 @@
 /* उधारी खाते – Service Worker
  * - अ‍ॅपचे शेल (CSS/JS/आयकॉन/फॉन्ट) कॅश होते -> अ‍ॅप वेगाने उघडते
  * - ग्राहकांचा डेटा / HTML पाने कधीही कॅश होत नाहीत (खाजगी माहिती फोनवर साठू नये म्हणून)
+ * - Navigation Preload: SW सुरू होत असतानाच पान सर्व्हरकडून मागवले जाते (प्रत्येक पान उघडण्यात वेळ वाचतो)
  * - इंटरनेट नसल्यास "इंटरनेट नाही" पान दिसते
+ *
+ * VERSION च्या ओळीतील placeholder app.py मधील ASSET_VERSION ने बदलला जातो -> ASSET_VERSION वाढवला की SW आपोआप अपडेट होतो.
  */
-const VERSION = "v3";
+const VERSION = "__ASSET_V__";
 const STATIC_CACHE = "udhari-static-" + VERSION;
-const FONT_CACHE = "udhari-fonts-" + VERSION;
+const FONT_CACHE = "udhari-fonts-v1";
 const PRECACHE = [
   "/offline",
-  "/static/css/style.css",
-  "/static/js/app.js",
+  "/static/css/style.css?v=" + VERSION,
+  "/static/js/app.js?v=" + VERSION,
   "/static/icons/icon-192.png",
   "/static/icons/icon-512.png",
 ];
@@ -24,18 +27,19 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(
+    Promise.all([
+      caches.keys().then((keys) => Promise.all(
         keys.filter((k) => k.startsWith("udhari-") && k !== STATIC_CACHE && k !== FONT_CACHE)
             .map((k) => caches.delete(k))
-      ))
-      .then(() => self.clients.claim())
+      )),
+      self.registration.navigationPreload ? self.registration.navigationPreload.enable() : Promise.resolve(),
+    ]).then(() => self.clients.claim())
   );
 });
 
 function staleWhileRevalidate(request, cacheName) {
   return caches.open(cacheName).then((cache) =>
-    cache.match(request, { ignoreSearch: false }).then((hit) => {
+    cache.match(request).then((hit) => {
       const net = fetch(request).then((res) => {
         if (res && (res.ok || res.type === "opaque")) cache.put(request, res.clone());
         return res;
@@ -45,14 +49,25 @@ function staleWhileRevalidate(request, cacheName) {
   );
 }
 
+async function handleNavigation(event) {
+  try {
+    const preloaded = await event.preloadResponse;
+    if (preloaded) return preloaded;
+    return await fetch(event.request);
+  } catch (err) {
+    const offline = await caches.match("/offline");
+    return offline || new Response("इंटरनेट नाही", { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+  }
+}
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
 
-  // पान उघडणे: नेहमी सर्व्हरकडून; ऑफलाइन असल्यास ऑफलाइन पान
+  // पान उघडणे: नेहमी सर्व्हरकडून (preload सह); ऑफलाइन असल्यास ऑफलाइन पान
   if (req.mode === "navigate") {
-    event.respondWith(fetch(req).catch(() => caches.match("/offline")));
+    event.respondWith(handleNavigation(event));
     return;
   }
 

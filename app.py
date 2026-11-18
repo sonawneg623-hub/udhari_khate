@@ -24,7 +24,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 IST = timezone(timedelta(hours=5, minutes=30))
-ASSET_VERSION = "3"  # वाढवा म्हणजे CSS/JS बदल फोनवर लगेच दिसतात
+ASSET_VERSION = "4"  # वाढवा म्हणजे CSS/JS बदल फोनवर लगेच दिसतात
 
 MONTHS_MR = ["जानेवारी", "फेब्रुवारी", "मार्च", "एप्रिल", "मे", "जून",
              "जुलै", "ऑगस्ट", "सप्टेंबर", "ऑक्टोबर", "नोव्हेंबर", "डिसेंबर"]
@@ -64,6 +64,8 @@ app.config.update(
     SESSION_COOKIE_SECURE=IS_PROD,
     PERMANENT_SESSION_LIFETIME=timedelta(days=30),
     MAX_CONTENT_LENGTH=1024 * 1024,
+    # CSS/JS ला ?v=ASSET_VERSION असतो, म्हणून ते ३० दिवस कॅश करणे सुरक्षित (वारंवार उघडताना नेटवर्क विचारणे थांबते)
+    SEND_FILE_MAX_AGE_DEFAULT=timedelta(days=30),
 )
 if app.config["SQLALCHEMY_DATABASE_URI"].startswith("postgresql"):
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
@@ -636,8 +638,9 @@ def manifest():
 
 @app.route("/sw.js")
 def service_worker():
-    resp = send_from_directory(os.path.join(BASE_DIR, "static", "js"), "sw.js",
-                               mimetype="application/javascript")
+    with open(os.path.join(BASE_DIR, "static", "js", "sw.js"), encoding="utf-8") as fh:
+        body = fh.read().replace("__ASSET_V__", ASSET_VERSION)
+    resp = Response(body, mimetype="application/javascript")
     resp.headers["Cache-Control"] = "no-cache"
     resp.headers["Service-Worker-Allowed"] = "/"
     return resp
